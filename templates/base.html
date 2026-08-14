@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Analyze and Backup{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script>
+    // Applied before body paints so there's no flash of the wrong theme.
+    (function () {
+      var saved = localStorage.getItem("theme");
+      var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
 </head>
 <body>
   <nav class="topnav">
@@ -12,9 +20,21 @@
     <a href="/photos">Photos</a>
     <a href="/documents">Documents</a>
     <a href="/activity">Activity</a>
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">&#9789;</button>
   </nav>
   <main>
     {% block content %}{% endblock %}
   </main>
+  <script>
+    (function () {
+      var btn = document.getElementById("theme-toggle");
+      btn.addEventListener("click", function () {
+        var current = document.documentElement.getAttribute("data-theme");
+        var next = current === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem("theme", next);
+      });
+    })();
+  </script>
 </body>
 </html>
