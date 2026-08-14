@@ -14,7 +14,7 @@ azure-cosmos>=4.5      # searchable index, shared schema with the teammate's api
 # --- Web interface ---
 Flask>=3.0
 qrcode[pil]>=7.4        # printable QR code generation
+gunicorn                # production WSGI server for the Azure App Service deployment
 
 # --- Testing ---
 pytest>=8.0
-gunicorn

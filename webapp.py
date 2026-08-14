@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
-"""Local web interface -- lets someone who just inserted an SD/USB card see
-what happened: which photos were kept, which documents were found and what
-they say, and basic run stats. Reads straight from local_backup/, refreshed
-on every request (no caching), so it always reflects the latest pipeline run.
+"""Web interface -- shows what the pipeline did: which photos were kept,
+which documents were found and what they say, what got quarantined/removed,
+and basic run stats. Runs in two modes, auto-detected:
 
-Run:
+  - Local (the Pi): reads straight from local_backup/, refreshed on every
+    request (no caching), so it always reflects the latest pipeline run on
+    that specific device.
+  - Cloud (Azure App Service): no local_backup/ exists there -- reads from
+    Cosmos DB / Blob Storage instead, the same shared data source the
+    teammate's api/ blueprints (also registered here) read from.
+
+Run locally:
     python webapp.py
 Then visit http://<pi-hostname>.local:5000 on any device on the same network
 (see generate_qr.py for a printable QR code pointing at that address).
 """
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -20,11 +27,63 @@ from analyze_and_backup.config import CONFIG
 from analyze_and_backup.results import (
     filter_by_kind,
     load_latest_records,
+    load_latest_records_from_cosmos,
     search_documents,
     summarize,
 )
 
+from api.audit import audit_bp
+from api.backup import backup_bp
+from api.batches import batches_bp
+from api.photos import photos_bp
+from api.quarantine import quarantine_bp
+
 app = Flask(__name__)
+app.register_blueprint(photos_bp)
+app.register_blueprint(backup_bp)
+app.register_blueprint(audit_bp)
+app.register_blueprint(batches_bp)
+app.register_blueprint(quarantine_bp)
+
+
+def is_cloud_deployment() -> bool:
+    """True when running on Azure App Service, False everywhere else (the
+    Pi, a dev machine). WEBSITE_SITE_NAME is set automatically by App
+    Service itself -- nothing to configure, no risk of the Pi accidentally
+    reading from Cosmos instead of its own local results."""
+    return bool(os.getenv("WEBSITE_SITE_NAME"))
+
+
+_cosmos_container = None
+
+
+def get_cosmos_container():
+    """Lazily builds (and caches) the Cosmos container client used to read
+    records in cloud mode -- same database/container AzureBackupStore
+    writes to and the teammate's api/ blueprints query."""
+    global _cosmos_container
+    if _cosmos_container is None:
+        from azure.cosmos import CosmosClient
+
+        client = CosmosClient(CONFIG.azure_cosmos_endpoint, CONFIG.azure_cosmos_key)
+        database = client.get_database_client(CONFIG.azure_cosmos_database)
+        _cosmos_container = database.get_container_client(CONFIG.azure_cosmos_container)
+    return _cosmos_container
+
+
+def load_records():
+    """Picks the right data source automatically -- see is_cloud_deployment().
+    In cloud mode without Cosmos credentials configured (AZURE_COSMOS_ENDPOINT/
+    KEY missing from the App Service's Application Settings), degrades to an
+    empty result set instead of crashing the whole dashboard with a 500."""
+    if is_cloud_deployment():
+        if not (CONFIG.azure_cosmos_endpoint and CONFIG.azure_cosmos_key):
+            return {}
+        try:
+            return load_latest_records_from_cosmos(get_cosmos_container())
+        except Exception:
+            return {}
+    return load_latest_records(backup_dir())
 
 
 def backup_dir() -> Path:
@@ -61,7 +120,7 @@ def _safe_media_path(folder: Path, filename: str) -> Path:
 
 @app.route("/")
 def dashboard():
-    records = load_latest_records(backup_dir())
+    records = load_records()
     summary = summarize(records)
     recent_photos = filter_by_kind(records, "photo")[:12]
     recent_documents = filter_by_kind(records, "document")[:6]
@@ -90,14 +149,14 @@ def control_stop():
 
 @app.route("/photos")
 def photos():
-    records = load_latest_records(backup_dir())
+    records = load_records()
     all_photos = filter_by_kind(records, "photo")
     return render_template("photos.html", photos=all_photos)
 
 
 @app.route("/documents")
 def documents():
-    records = load_latest_records(backup_dir())
+    records = load_records()
     query = request.args.get("q", "")
     date_from = request.args.get("date_from", "")
     date_to = request.args.get("date_to", "")
@@ -115,7 +174,7 @@ def documents():
 def activity():
     """Quarantined (bad, held for review) + deletions (duplicates, no copy
     kept) + uncertain items -- the audit trail."""
-    records = load_latest_records(backup_dir())
+    records = load_records()
     quarantined = filter_by_kind(records, "quarantine")
     deletions = filter_by_kind(records, "deletion")
     uncertain = filter_by_kind(records, "uncertain")

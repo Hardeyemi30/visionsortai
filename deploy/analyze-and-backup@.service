@@ -20,7 +20,13 @@ Type=oneshot
 # mount both need root, but the actual pipeline script (ExecStart) doesn't
 # and shouldn't run as root.
 ExecStartPre=+/bin/mkdir -p /mnt/analyze-and-backup/%I
-ExecStartPre=+-/bin/mount /dev/%I /mnt/analyze-and-backup/%I
+# umask=000: camera SD/USB cards are almost always FAT32/exFAT, which
+# default to files being effectively root-owned with no write access for
+# other users when mounted plainly. Without this, the pipeline (running as
+# the unprivileged vision user below) can read/upload files fine but gets
+# "Permission denied" the moment it tries to delete/quarantine one off the
+# card. Harmless no-op on filesystems that ignore the option.
+ExecStartPre=+-/bin/mount -o umask=000 /dev/%I /mnt/analyze-and-backup/%I
 # PYTHONUNBUFFERED=1: without this, cli.py's print() output sits in a buffer
 # and doesn't reach journalctl until the process exits (Python buffers
 # stdout by block when it isn't attached to a terminal, which is always the

@@ -11,7 +11,7 @@
 <div class="doc-list">
   {% for d in documents %}
     <div class="doc-card">
-      <img src="{{ url_for('media_document', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
+      <img src="{{ d.image_url or url_for('media_document', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
       <div>
         <strong>{{ d.metadata.category or "document" }}</strong>
         <span class="muted">{{ d.metadata.timestamp or d.stored_at }}</span>

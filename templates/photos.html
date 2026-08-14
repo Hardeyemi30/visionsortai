@@ -4,8 +4,8 @@
 <h1>Photos ({{ photos|length }})</h1>
 <div class="gallery">
   {% for p in photos %}
-    <a href="{{ url_for('media_photo', filename=p.filename) }}" target="_blank">
-      <img src="{{ url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
+    <a href="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" target="_blank">
+      <img src="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
     </a>
   {% endfor %}
 </div>
