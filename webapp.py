@@ -17,7 +17,6 @@ Then visit http://<pi-hostname>.local:5000 on any device on the same network
 """
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
 
@@ -47,14 +46,6 @@ app.register_blueprint(batches_bp)
 app.register_blueprint(quarantine_bp)
 
 
-def is_cloud_deployment() -> bool:
-    """True when running on Azure App Service, False everywhere else (the
-    Pi, a dev machine). WEBSITE_SITE_NAME is set automatically by App
-    Service itself -- nothing to configure, no risk of the Pi accidentally
-    reading from Cosmos instead of its own local results."""
-    return bool(os.getenv("WEBSITE_SITE_NAME"))
-
-
 _cosmos_container = None
 
 
@@ -73,13 +64,16 @@ def get_cosmos_container():
 
 
 def load_records():
-    """Picks the right data source automatically -- see is_cloud_deployment().
-    In cloud mode without Cosmos credentials configured (AZURE_COSMOS_ENDPOINT/
-    KEY missing from the App Service's Application Settings), degrades to an
-    empty result set instead of crashing the whole dashboard with a 500."""
-    if is_cloud_deployment():
-        if not (CONFIG.azure_cosmos_endpoint and CONFIG.azure_cosmos_key):
-            return {}
+    """Reads from Cosmos DB whenever credentials are configured, regardless
+    of whether this is running on Azure App Service or on the Pi itself --
+    both write to and read from the same shared container once
+    AZURE_COSMOS_ENDPOINT/KEY are set. This keeps the Pi's own local
+    dashboard in sync now that the pipeline writes straight to Cosmos/Blob
+    instead of local_backup/. Falls back to local_backup/index.jsonl only
+    when Cosmos isn't configured at all (e.g. --local-backup/mock dev runs),
+    and degrades to an empty result set instead of crashing with a 500 if
+    Cosmos is configured but unreachable."""
+    if CONFIG.azure_cosmos_endpoint and CONFIG.azure_cosmos_key:
         try:
             return load_latest_records_from_cosmos(get_cosmos_container())
         except Exception:
