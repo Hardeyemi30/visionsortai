@@ -113,6 +113,27 @@ def _safe_media_path(folder: Path, filename: str) -> Path:
     return target
 
 
+@app.route("/debug/cosmos")
+def debug_cosmos():
+    """Temporary diagnostic route -- surfaces the real Cosmos error instead
+    of the silent {} degrade in load_records(), so we can see why the
+    dashboard reads zero records. Remove once diagnosed."""
+    if not (CONFIG.azure_cosmos_endpoint and CONFIG.azure_cosmos_key):
+        return "Cosmos not configured (missing endpoint/key)", 200
+    try:
+        container = get_cosmos_container()
+        records = load_latest_records_from_cosmos(container)
+        return (
+            f"OK endpoint={CONFIG.azure_cosmos_endpoint} "
+            f"db={CONFIG.azure_cosmos_database} "
+            f"container={CONFIG.azure_cosmos_container} "
+            f"records={len(records)}"
+        ), 200
+    except Exception as e:
+        import traceback
+        return f"ERROR {type(e).__name__}: {e}\n\n{traceback.format_exc()}", 200
+
+
 @app.route("/")
 def dashboard():
     records = load_records()
