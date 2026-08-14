@@ -41,7 +41,7 @@
 <h2>Recent photos</h2>
 <div class="gallery">
   {% for p in recent_photos %}
-    <a href="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" target="_blank">
+    <a href="{{ url_for('detail', filename=p.filename) }}">
       <img src="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
     </a>
   {% endfor %}
@@ -53,13 +53,13 @@
 <h2>Recent documents</h2>
 <div class="doc-list">
   {% for d in recent_documents %}
-    <div class="doc-card">
+    <a class="doc-card" href="{{ url_for('detail', filename=d.filename) }}">
       <img src="{{ d.image_url or url_for('media_document', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
       <div>
         <strong>{{ d.metadata.category or "document" }}</strong>
         <p>{{ (d.metadata.extracted_text or "")[:120] }}{% if (d.metadata.extracted_text or "")|length > 120 %}...{% endif %}</p>
       </div>
-    </div>
+    </a>
   {% endfor %}
 </div>
 <p><a href="/documents">Search all documents &rarr;</a></p>

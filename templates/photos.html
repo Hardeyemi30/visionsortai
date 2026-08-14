@@ -2,12 +2,29 @@
 {% block title %}Photos{% endblock %}
 {% block content %}
 <h1>Photos ({{ photos|length }})</h1>
+
+<form method="get" class="search-form">
+  <select name="sort">
+    <option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest taken first</option>
+    <option value="oldest" {% if sort == "oldest" %}selected{% endif %}>Oldest taken first</option>
+    <option value="upload" {% if sort == "upload" %}selected{% endif %}>Most recently processed</option>
+  </select>
+  <label class="date-label">Taken from <input type="date" name="date_from" value="{{ date_from }}"></label>
+  <label class="date-label">to <input type="date" name="date_to" value="{{ date_to }}"></label>
+  <select name="location">
+    <option value="" {% if location == "" %}selected{% endif %}>Any location</option>
+    <option value="has" {% if location == "has" %}selected{% endif %}>Has GPS location</option>
+    <option value="none" {% if location == "none" %}selected{% endif %}>No location data</option>
+  </select>
+  <button type="submit">Apply</button>
+</form>
+
 <div class="gallery">
   {% for p in photos %}
-    <a href="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" target="_blank">
+    <a href="{{ url_for('detail', filename=p.filename) }}">
       <img src="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
     </a>
   {% endfor %}
 </div>
-{% if not photos %}<p class="muted">No approved photos yet.</p>{% endif %}
+{% if not photos %}<p class="muted">No approved photos match.</p>{% endif %}
 {% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ record.filename }}{% endblock %}
+{% block content %}
+<p><a href="javascript:history.back()">&larr; Back</a></p>
+<h1>{{ record.filename }}</h1>
+<p class="muted">{{ record.kind }}</p>
+
+<img src="{{ display_url }}" alt="{{ record.filename }}" class="detail-image">
+
+<table class="detail-table">
+  {% if record.metadata.timestamp %}
+  <tr><th>Taken</th><td>{{ record.metadata.timestamp }}</td></tr>
+  {% endif %}
+  <tr><th>Processed</th><td>{{ record.stored_at }}</td></tr>
+  {% if record.metadata.camera_model %}
+  <tr><th>Camera</th><td>{{ record.metadata.camera_model }}</td></tr>
+  {% endif %}
+  {% if maps_url %}
+  <tr><th>Location</th><td><a href="{{ maps_url }}" target="_blank">{{ record.metadata.gps_latitude }}, {{ record.metadata.gps_longitude }} (view on map)</a></td></tr>
+  {% else %}
+  <tr><th>Location</th><td class="muted">No GPS data</td></tr>
+  {% endif %}
+  {% if record.metadata.category %}
+  <tr><th>Category</th><td>{{ record.metadata.category }}</td></tr>
+  {% endif %}
+  {% if record.metadata.extracted_text %}
+  <tr><th>Extracted text</th><td><pre class="extracted-text">{{ record.metadata.extracted_text }}</pre></td></tr>
+  {% endif %}
+  {% if record.metadata.reason %}
+  <tr><th>Reason</th><td>{{ record.metadata.reason }}</td></tr>
+  {% endif %}
+  {% if record.metadata.agent_confidence is not none %}
+  <tr><th>AI confidence</th><td>{{ "%.0f"|format(record.metadata.agent_confidence * 100) }}%</td></tr>
+  {% endif %}
+  {% if record.metadata.agent_reasoning %}
+  <tr><th>AI reasoning</th><td>{{ record.metadata.agent_reasoning }}</td></tr>
+  {% endif %}
+  {% if record.metadata.file_sha256 %}
+  <tr><th>File hash</th><td class="mono">{{ record.metadata.file_sha256 }}</td></tr>
+  {% endif %}
+</table>
+{% endblock %}

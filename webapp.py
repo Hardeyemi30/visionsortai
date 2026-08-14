@@ -25,6 +25,7 @@ from flask import Flask, abort, redirect, render_template, request, send_from_di
 
 from analyze_and_backup.config import CONFIG
 from analyze_and_backup.results import (
+    browse_photos,
     filter_by_kind,
     load_latest_records,
     load_latest_records_from_cosmos,
@@ -150,8 +151,46 @@ def control_stop():
 @app.route("/photos")
 def photos():
     records = load_records()
-    all_photos = filter_by_kind(records, "photo")
-    return render_template("photos.html", photos=all_photos)
+    sort = request.args.get("sort", "newest")
+    date_from = request.args.get("date_from", "")
+    date_to = request.args.get("date_to", "")
+    location = request.args.get("location", "")
+    all_photos = browse_photos(records, sort=sort, date_from=date_from, date_to=date_to, location=location)
+    return render_template(
+        "photos.html",
+        photos=all_photos,
+        sort=sort,
+        date_from=date_from,
+        date_to=date_to,
+        location=location,
+    )
+
+
+@app.route("/detail/<path:filename>")
+def detail(filename):
+    """Full metadata for one photo/document/quarantined item -- what
+    clicking a thumbnail opens, instead of just the raw image."""
+    records = load_records()
+    record = records.get(filename)
+    if record is None:
+        abort(404)
+
+    if record.image_url:
+        display_url = record.image_url
+    elif record.kind == "document":
+        display_url = url_for("media_document", filename=record.filename)
+    elif record.kind == "quarantine":
+        display_url = url_for("media_quarantine", filename=record.filename)
+    else:
+        display_url = url_for("media_photo", filename=record.filename)
+
+    maps_url = None
+    lat = record.metadata.get("gps_latitude")
+    lng = record.metadata.get("gps_longitude")
+    if lat is not None and lng is not None:
+        maps_url = f"https://www.google.com/maps?q={lat},{lng}"
+
+    return render_template("detail.html", record=record, display_url=display_url, maps_url=maps_url)
 
 
 @app.route("/documents")

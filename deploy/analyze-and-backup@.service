@@ -4,10 +4,11 @@
 #
 # %I in a systemd template unit = the instance name (the partition, e.g. sda1)
 #
-# NOTE: runs with --mock-agent --local-backup for now (no Azure credentials
-# configured yet). Once .env has real AZURE_OPENAI_* / AZURE_STORAGE_* values,
-# delete "--mock-agent --local-backup" from the ExecStart line below so it
-# uses the real vision agent and uploads to Blob Storage instead.
+# Uses the real Azure OpenAI vision agent and uploads to Blob Storage /
+# Cosmos DB (see .env for AZURE_OPENAI_* / AZURE_STORAGE_* / AZURE_COSMOS_*).
+# Every photo on every card insertion makes a real (billed) Azure OpenAI
+# call -- switch back to --mock-agent --local-backup on the ExecStart line
+# below if that's ever a concern (e.g. burning through free-tier credits).
 
 [Unit]
 Description=Analyze and Backup - process inserted card/drive %I
@@ -33,7 +34,7 @@ ExecStartPre=+-/bin/mount -o umask=000 /dev/%I /mnt/analyze-and-backup/%I
 # case under systemd) -- this makes `journalctl -u ... -f` show progress
 # live, per photo, instead of all at once at the end.
 Environment=PYTHONUNBUFFERED=1
-ExecStart=__PROJECT_DIR__/.venv/bin/python3 __PROJECT_DIR__/cli.py --mount-path /mnt/analyze-and-backup/%I --mock-agent --local-backup
+ExecStart=__PROJECT_DIR__/.venv/bin/python3 __PROJECT_DIR__/cli.py --mount-path /mnt/analyze-and-backup/%I
 ExecStopPost=+-/bin/umount /mnt/analyze-and-backup/%I
 User=__PROJECT_USER__
 WorkingDirectory=__PROJECT_DIR__

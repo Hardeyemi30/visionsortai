@@ -178,3 +178,67 @@ def _parse_iso_date(value: str) -> date_cls | None:
         return datetime.strptime(value, "%Y-%m-%d").date()
     except ValueError:
         return None
+
+
+def has_gps(record: ResultRecord) -> bool:
+    return record.metadata.get("gps_latitude") is not None and record.metadata.get("gps_longitude") is not None
+
+
+def browse_photos(
+    records: dict[str, ResultRecord],
+    sort: str = "newest",
+    date_from: str = "",
+    date_to: str = "",
+    location: str = "",
+) -> list[ResultRecord]:
+    """Photos page filtering/sorting.
+
+    sort: "newest" (default, by capture date) | "oldest" (by capture date) |
+    "upload" (by when the pipeline processed it, most recent first).
+    "Capture date" is the EXIF timestamp (when the photo was actually
+    taken), not stored_at (when the pipeline processed it) -- these can
+    differ by years for old photos being backed up for the first time.
+
+    location: "" (default, no filter) | "has" (only photos with GPS
+    coordinates) | "none" (only photos without). Most real photos have no
+    GPS fix at all (phone/camera never got one), so "has" will often be
+    empty -- that's a real reflection of the data, not a bug.
+
+    date_from/date_to filter by capture date too, same "YYYY-MM-DD" format
+    as search_documents().
+    """
+    photos = filter_by_kind(records, "photo")
+
+    parsed_from = _parse_iso_date(date_from)
+    parsed_to = _parse_iso_date(date_to)
+
+    filtered = []
+    for r in photos:
+        if parsed_from or parsed_to:
+            photo_date = _parse_exif_date(r.metadata.get("timestamp") or "")
+            if photo_date is None:
+                continue  # can't filter by date if we don't have one
+            if parsed_from and photo_date < parsed_from:
+                continue
+            if parsed_to and photo_date > parsed_to:
+                continue
+
+        if location == "has" and not has_gps(r):
+            continue
+        if location == "none" and has_gps(r):
+            continue
+
+        filtered.append(r)
+
+    if sort == "upload":
+        filtered.sort(key=lambda r: r.stored_at, reverse=True)
+        return filtered
+
+    # "newest" / "oldest" by capture date -- photos with no EXIF timestamp
+    # can't be placed on a timeline, so they're listed after the ones that
+    # can (sorted among themselves by upload time instead).
+    with_date = [r for r in filtered if r.metadata.get("timestamp")]
+    without_date = [r for r in filtered if not r.metadata.get("timestamp")]
+    with_date.sort(key=lambda r: r.metadata["timestamp"], reverse=(sort != "oldest"))
+    without_date.sort(key=lambda r: r.stored_at, reverse=True)
+    return with_date + without_date
