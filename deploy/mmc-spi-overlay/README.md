@@ -38,7 +38,7 @@ ls /dev/mmcblk*
 
 Paste the `dmesg` output back and we'll adjust. Likely failure points, in
 rough order of likelihood:
-- Wiring issue (double-check against `pi_status_box_wiring.md` section 1)
+- Wiring issue (double-check every pin against the pinout above)
 - The `spidev0` vs our `mhsd@0` chip-select handoff not behaving as
   expected on your specific kernel version
 - SPI clock too fast for the breadboard wiring (already set conservatively

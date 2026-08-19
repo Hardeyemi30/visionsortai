@@ -257,7 +257,7 @@ main.narrow { max-width: 980px; margin: 0 auto; padding: 34px 32px 70px; }
 .feed-time { margin-left: auto; font-size: 11.5px; color: var(--text-muted); white-space: nowrap; padding-left: 10px; }
 
 /* ---------------------------------------------------------------------
-   Right-rail panels (locations / status box / mini doc list)
+   Right-rail panels (locations / pipeline status / mini doc list)
 --------------------------------------------------------------------- */
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
 .panel-title {
