@@ -60,16 +60,6 @@ cp .env.example .env        # fill in Azure OpenAI + Storage credentials
 sudo apt install libimage-exiftool-perl   # on the actual Raspberry Pi
 ```
 
-On the Pi itself, also install the status box's hardware dependencies
-(kept out of the base `requirements.txt` on purpose -- `lgpio` needs a
-system GPIO library that only exists on real Pi hardware and fails to
-build anywhere else, e.g. a dev machine or the Azure App Service build):
-
-```bash
-sudo apt install liblgpio-dev
-pip install -r requirements-pi.txt
-```
-
 ## Running
 
 ```bash

@@ -109,7 +109,7 @@
     </div>
 
     <div class="panel">
-      <div class="panel-title">Status box</div>
+      <div class="panel-title">Pipeline status</div>
       <div class="srow"><span><span class="dot"></span>Pipeline</span><b>{{ 'Processing…' if run_active else 'Idle' }}</b></div>
       <div class="srow"><span>Last run</span><b>{{ summary.last_run[:19].replace('T', ' ') if summary.last_run else '—' }}</b></div>
       <div class="srow"><span>With location</span><b>{{ locations|sum(attribute='count') }} / {{ summary.counts.photo }}</b></div>

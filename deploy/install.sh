@@ -24,7 +24,7 @@ echo "Running as:         $PROJECT_USER"
 
 if [ ! -x "$PROJECT_DIR/.venv/bin/python3" ]; then
   echo "WARNING: $PROJECT_DIR/.venv/bin/python3 not found."
-  echo "Set up the virtual environment first (python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt -r requirements-pi.txt)"
+  echo "Set up the virtual environment first (python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt)"
   exit 1
 fi
 
@@ -39,43 +39,17 @@ sed "s|__PROJECT_DIR__|$PROJECT_DIR|g; s|__PROJECT_USER__|$PROJECT_USER|g" \
 sed "s|__PROJECT_DIR__|$PROJECT_DIR|g; s|__PROJECT_USER__|$PROJECT_USER|g" \
   "$DEPLOY_DIR/analyze-and-backup-web.service" > /etc/systemd/system/analyze-and-backup-web.service
 
-STATUS_BOX_INSTALLED=0
-if [ -f "$PROJECT_DIR/pi_status_box.py" ]; then
-  echo "Installing physical status box service (pi_status_box.py found)..."
-  sed "s|__PROJECT_DIR__|$PROJECT_DIR|g; s|__PROJECT_USER__|$PROJECT_USER|g" \
-    "$DEPLOY_DIR/analyze-and-backup-status.service" > /etc/systemd/system/analyze-and-backup-status.service
-
-  # No sudoers rule needed here anymore -- that was only for the physical
-  # safe-shutdown button's passwordless umount/shutdown, and the button has
-  # been dropped from this project. Shut the Pi down via SSH as usual:
-  # sudo shutdown -h now.
-
-  STATUS_BOX_INSTALLED=1
-else
-  echo "Skipping status box service -- pi_status_box.py not found in $PROJECT_DIR"
-  echo "  (wire up the hardware and copy it in, then re-run this script)"
-fi
-
 systemctl daemon-reload
 systemctl enable --now analyze-and-backup-web.service
-if [ "$STATUS_BOX_INSTALLED" -eq 1 ]; then
-  systemctl enable --now analyze-and-backup-status.service
-fi
 
 echo ""
 echo "Done."
 echo "  - Web interface: running now, will also start on every boot."
 echo "  - Card processing: will start automatically next time a USB drive"
 echo "    or SD card (via USB reader) is inserted."
-if [ "$STATUS_BOX_INSTALLED" -eq 1 ]; then
-  echo "  - Status box: running now, will also start on every boot."
-fi
 echo ""
 echo "Check the web interface is up:   systemctl status analyze-and-backup-web.service"
 echo "Watch it process a card:         journalctl -u 'analyze-and-backup@*' -f"
-if [ "$STATUS_BOX_INSTALLED" -eq 1 ]; then
-  echo "Check the status box is up:      systemctl status analyze-and-backup-status.service"
-fi
 echo ""
 echo "Next: set a stable hostname (sudo raspi-config -> System Options -> Hostname)"
 echo "so http://<hostname>.local:5000 doesn't change, then regenerate the QR sign:"

@@ -11,17 +11,10 @@ git clone <your repo>   # or copy the project folder over
 cd analyze-and-backup
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt -r requirements-pi.txt
-sudo apt install libimage-exiftool-perl liblgpio-dev   # exiftool + status box GPIO lib
+pip install -r requirements.txt
+sudo apt install libimage-exiftool-perl   # exiftool
 cp .env.example .env                       # fill in thresholds / Azure creds later
 ```
-
-`requirements-pi.txt` is the status box's hardware dependencies (`gpiozero`,
-`lgpio`) -- Pi-only, on top of the base `requirements.txt`. Don't add them
-to the base file: `lgpio` needs the `liblgpio-dev` system library to build
-its C extension, which doesn't exist on a dev machine or a cloud build
-server (this broke the Azure App Service GitHub Actions deploy once
-already when it briefly lived in the shared file).
 
 ## 2. Install the auto-run service + web interface
 
@@ -38,12 +31,9 @@ This installs:
   until Azure is configured
 - `analyze-and-backup-web.service` (systemd) -- runs `webapp.py` on boot,
   restarts automatically if it crashes
-- `analyze-and-backup-status.service` (systemd) -- runs `pi_status_box.py`
-  on boot if that file exists in the project root (the physical LED bar
-  graph: readiness display + job-in-progress animation; skipped
-  automatically if the hardware/script isn't set up yet). The 8x8 matrix
-  and the physical safe-shutdown button were both dropped from this
-  project -- shut the Pi down via SSH as usual (`sudo shutdown -h now`).
+
+There's no physical status box or button in this project -- shut the Pi
+down via SSH as usual (`sudo shutdown -h now`).
 
 ## 2.5. (Optional) SPI microSD card module
 
@@ -76,12 +66,9 @@ hostname changes.
 
 ```bash
 systemctl status analyze-and-backup-web.service      # web interface up?
-systemctl status analyze-and-backup-status.service   # status box up? (if installed)
 journalctl -u 'analyze-and-backup@*' -f               # watch card processing live
 ```
 
 Insert a USB drive with a few test photos on it, watch the journalctl
 output, then scan the QR sign (or visit the URL manually) to see the
-results. If the status box is installed, the matrix should also start
-spinning the moment the card is detected and clear/checkmark when
-`cli.py` finishes.
+results.

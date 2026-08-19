@@ -271,9 +271,7 @@ def _build_upload_pipeline():
 def upload():
     """Lets someone add photos through the website instead of only via a
     physical SD card/USB drive -- same Pipeline, same routing (kept /
-    quarantined / filed as a document / deduped), and it drives the bar
-    graph's "busy" animation the same way a card insert does (see
-    cli.JOB_FLAG_PATH), since it's the same flag file either way."""
+    quarantined / filed as a document / deduped)."""
     if request.method == "GET":
         return render_template("upload.html")
 
@@ -302,13 +300,8 @@ def upload():
                 error="Only .jpg/.jpeg/.png files are supported -- none of the selected files matched.",
             )
 
-        cli.JOB_FLAG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        cli.JOB_FLAG_PATH.touch()
-        try:
-            pipeline = _build_upload_pipeline()
-            results = pipeline.process_card(incoming_dir)
-        finally:
-            cli.JOB_FLAG_PATH.unlink(missing_ok=True)
+        pipeline = _build_upload_pipeline()
+        results = pipeline.process_card(incoming_dir)
     finally:
         shutil.rmtree(incoming_dir, ignore_errors=True)
 
