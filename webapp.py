@@ -351,7 +351,12 @@ def detail(filename):
     clicking a thumbnail opens, instead of just the raw image."""
     records = load_records()
     record = records.get(filename)
-    if record is None:
+    if record is None or record.kind not in ("photo", "document", "quarantine"):
+        # A filename's most recent index record can be a "deletion" or
+        # "uncertain" log entry instead of the viewable item itself (e.g.
+        # right after someone deletes it via the web UI) -- treat those the
+        # same as not found rather than rendering a broken page with a dead
+        # image link and deletion-log metadata mislabeled as the photo.
         abort(404)
 
     if record.image_url:

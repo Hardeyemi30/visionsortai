@@ -81,11 +81,11 @@ inside `local_backup/` is the audit log every action gets written to.
 pytest -v
 ```
 
-18 tests, all passing: perceptual-hash duplicate matching, blur/exposure
+32 tests, all passing: perceptual-hash duplicate matching, blur/exposure
 scoring, exiftool JSON parsing (mocked, since exiftool itself isn't needed to
-run the test suite), and full pipeline routing (confident delete, low-confidence
+run the test suite), full pipeline routing (confident delete, low-confidence
 "keep as uncertain", document storage, photo backup, duplicate fast-path that
-skips the agent entirely).
+skips the agent entirely), stop-mid-run handling, and document search/filtering.
 
 ## Thresholds — what's real vs. placeholder
 

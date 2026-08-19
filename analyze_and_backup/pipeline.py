@@ -97,23 +97,30 @@ class Pipeline:
         phash = compute_phash(path)
         blur = blur_score(path)
         existing = self.dedup_index.find_duplicate(phash)
+        pending_supersede = None  # (existing_entry, old_path) -- see below
         if existing is not None:
             resolution = resolve_duplicate(existing, path, blur)
-            dedup_meta = {"batch_id": self.batch_id, "file_sha256": metadata.file_sha256}
             if resolution.delete_path == str(path):
+                dedup_meta = {"batch_id": self.batch_id, "file_sha256": metadata.file_sha256}
                 self.backup_store.log_deletion(path, reason="duplicate of an existing sharper photo", metadata=dedup_meta)
                 self._delete_file(path)
                 return PipelineResult(str(path), "deleted_duplicate", f"duplicate of {existing.path}")
             else:
-                # The new photo is sharper -- it replaces the index entry,
-                # and the previously-kept file is deleted instead.
-                old_path = Path(existing.path)
-                self.dedup_index.replace(existing, path, phash, blur)
-                self.backup_store.log_deletion(old_path, reason="duplicate, superseded by a sharper photo", metadata=dedup_meta)
-                self._delete_file(old_path)
-                # fall through: the new (sharper) photo continues through quality/agent checks below
-        else:
-            self.dedup_index.add(path, phash, blur)
+                # The new photo looks sharper than the one currently
+                # indexed for this hash -- but DON'T touch the dedup index
+                # or delete the old file yet. Only a photo that actually
+                # ends up kept (the "stored_photo" branch below) is a safe
+                # thing to index for future duplicate comparisons; if this
+                # one instead gets quarantined, filed as a document, or
+                # deleted, its own source path won't exist for long, and an
+                # index entry pointing at it would go stale. That staleness
+                # is exactly what let an earlier version of this pipeline
+                # log a false "duplicate, superseded" deletion for a photo
+                # that was actually still sitting safely in quarantine --
+                # so the supersede is deferred until the outcome is known,
+                # at the bottom of this method.
+                pending_supersede = (existing, Path(existing.path))
+                # fall through: the new (possibly-sharper) photo continues through quality/agent checks below
 
         # Step 3: local quality checks
         exposure = exposure_metrics(path)
@@ -200,6 +207,19 @@ class Pipeline:
 
         # classification == "photo"
         record = self.backup_store.upload_photo(path, meta_dict)
+
+        # Only now, once this photo is confirmed kept, do we touch the
+        # dedup index -- see the long comment above where pending_supersede
+        # is set for why this is deferred this far.
+        if pending_supersede is not None:
+            existing_entry, old_path = pending_supersede
+            self.dedup_index.replace(existing_entry, path, phash, blur)
+            supersede_meta = {"batch_id": self.batch_id, "file_sha256": metadata.file_sha256}
+            self.backup_store.log_deletion(old_path, reason="duplicate, superseded by a sharper photo", metadata=supersede_meta)
+            self._delete_file(old_path)
+        elif existing is None:
+            self.dedup_index.add(path, phash, blur)
+
         return PipelineResult(str(path), "stored_photo", "approved photo", result, record)
 
     def process_card(self, mount_path: Path, extensions=(".jpg", ".jpeg", ".png")) -> list[PipelineResult]:
