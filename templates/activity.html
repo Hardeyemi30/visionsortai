@@ -8,7 +8,7 @@
 <div class="stat-grid">
   <div class="stat-tile warn"><div class="n">{{ quarantined|length }}</div><div class="l">Quarantined</div></div>
   <div class="stat-tile warn"><div class="n">{{ uncertain|length }}</div><div class="l">Uncertain</div></div>
-  <div class="stat-tile bad"><div class="n">{{ deletions|length }}</div><div class="l">Removed (duplicates)</div></div>
+  <div class="stat-tile bad"><div class="n">{{ duplicates|length }}</div><div class="l">Removed (duplicates)</div></div>
 </div>
 
 <div class="section-block">
@@ -40,6 +40,34 @@
 </div>
 
 <div class="section-block">
+  <div class="section-head"><h2>Removed duplicates ({{ duplicates|length }})</h2></div>
+  <p class="muted" style="margin-top:-6px">Detected as a duplicate of a sharper copy already kept &mdash; deleted from the card immediately (a sharper copy was always retained), but a copy is kept here so you can still see what was removed.</p>
+  {% if duplicates %}
+  <div class="doc-list">
+    {% for d in duplicates %}
+      <div class="doc-card">
+        <a class="doc-card-link" href="{{ url_for('detail', filename=d.filename) }}">
+          <img src="{{ d.image_url or url_for('media_duplicate', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
+          <div>
+            <strong style="word-break:break-all">{{ d.filename }}</strong>
+            <p>{{ d.metadata.reason }}</p>
+          </div>
+        </a>
+        <form class="row-del" method="post" action="{{ url_for('delete_record', filename=d.filename) }}" onsubmit="return confirm('Delete {{ d.filename }}? This removes the stored copy permanently.');">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit" class="del-btn" aria-label="Delete duplicate copy">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>
+          </button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">None.</p>
+  {% endif %}
+</div>
+
+<div class="section-block">
   <div class="section-head"><h2>Uncertain ({{ uncertain|length }})</h2></div>
   <p class="muted" style="margin-top:-6px">Low-confidence items the agent didn't act on &mdash; kept, not deleted.</p>
   <ul class="log-list">
@@ -51,8 +79,8 @@
 </div>
 
 <div class="section-block">
-  <div class="section-head"><h2>Removed ({{ deletions|length }})</h2></div>
-  <p class="muted" style="margin-top:-6px">Duplicates &mdash; deleted immediately, no copy kept (a sharper copy was always retained instead).</p>
+  <div class="section-head"><h2>Deleted by you ({{ deletions|length }})</h2></div>
+  <p class="muted" style="margin-top:-6px">Manually removed from the web interface &mdash; no copy kept.</p>
   <ul class="log-list">
     {% for d in deletions %}
       <li><span class="fname">{{ d.filename }}</span><span class="reason">{{ d.metadata.reason }}</span></li>

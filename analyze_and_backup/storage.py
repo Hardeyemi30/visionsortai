@@ -26,7 +26,7 @@ from typing import Protocol
 
 @dataclass
 class BackupRecord:
-    kind: str  # "photo" | "document" | "quarantine" | "deletion" | "uncertain"
+    kind: str  # "photo" | "document" | "quarantine" | "duplicate" | "deletion" | "uncertain"
     source_path: str
     stored_at: str  # ISO timestamp
     metadata: dict
@@ -36,6 +36,7 @@ class BackupStore(Protocol):
     def upload_photo(self, path: Path, metadata: dict) -> BackupRecord: ...
     def upload_document_record(self, path: Path, metadata: dict) -> BackupRecord: ...
     def quarantine_photo(self, path: Path, reason: str, metadata: dict) -> BackupRecord: ...
+    def remove_duplicate(self, path: Path, reason: str, metadata: dict) -> BackupRecord: ...
     def log_deletion(self, path: Path, reason: str, metadata: dict | None = None) -> BackupRecord: ...
     def log_uncertain(self, path: Path, reason: str, metadata: dict | None = None) -> BackupRecord: ...
     def delete_stored(self, kind: str, filename: str, reason: str, metadata: dict | None = None) -> BackupRecord: ...
@@ -50,6 +51,7 @@ class LocalBackupStore:
         (self.base_dir / "photos").mkdir(parents=True, exist_ok=True)
         (self.base_dir / "documents").mkdir(parents=True, exist_ok=True)
         (self.base_dir / "quarantine").mkdir(parents=True, exist_ok=True)
+        (self.base_dir / "duplicates").mkdir(parents=True, exist_ok=True)
         self.index_path = self.base_dir / "index.jsonl"
 
     def _append_index(self, record: BackupRecord) -> None:
@@ -83,6 +85,21 @@ class LocalBackupStore:
         self._append_index(record)
         return record
 
+    def remove_duplicate(self, path: Path, reason: str, metadata: dict) -> BackupRecord:
+        """A pipeline-detected duplicate -- like quarantine_photo, a copy is
+        kept (in duplicates/) before the source is deleted, so removed
+        photos are still visible in the web interface instead of just a
+        filename + reason in the log. Unlike quarantine there's no
+        approve/restore step: the sharper copy was always kept, so nothing
+        unique is at risk and the delete still happens immediately -- this
+        copy is purely for visibility/audit, not a review queue."""
+        path = Path(path)
+        dest = self.base_dir / "duplicates" / path.name
+        shutil.copy2(path, dest)
+        record = BackupRecord("duplicate", str(path), self._now(), {**metadata, "reason": reason})
+        self._append_index(record)
+        return record
+
     def log_deletion(self, path: Path, reason: str, metadata: dict | None = None) -> BackupRecord:
         record = BackupRecord("deletion", str(path), self._now(), {**(metadata or {}), "reason": reason})
         self._append_index(record)
@@ -97,7 +114,7 @@ class LocalBackupStore:
     # user-initiated delete from the web interface (as opposed to
     # log_deletion() above, which is the pipeline discarding a duplicate
     # that was never stored in the first place).
-    _KIND_FOLDER = {"photo": "photos", "document": "documents", "quarantine": "quarantine"}
+    _KIND_FOLDER = {"photo": "photos", "document": "documents", "quarantine": "quarantine", "duplicate": "duplicates"}
 
     def delete_stored(self, kind: str, filename: str, reason: str, metadata: dict | None = None) -> BackupRecord:
         folder = self._KIND_FOLDER.get(kind)
@@ -127,6 +144,7 @@ class AzureBackupStore:
         connection_string: str,
         container: str,
         quarantine_container: str = "quarantine",
+        duplicates_container: str = "duplicates",
         cosmos_endpoint: str | None = None,
         cosmos_key: str | None = None,
         cosmos_database: str = "visionsortai",
@@ -145,6 +163,12 @@ class AzureBackupStore:
         self._quarantine_client = self._client.get_container_client(quarantine_container)
         try:
             self._quarantine_client.create_container()
+        except Exception:
+            pass  # already exists
+
+        self._duplicates_client = self._client.get_container_client(duplicates_container)
+        try:
+            self._duplicates_client.create_container()
         except Exception:
             pass  # already exists
 
@@ -240,6 +264,25 @@ class AzureBackupStore:
         })
         return record
 
+    def remove_duplicate(self, path: Path, reason: str, metadata: dict) -> BackupRecord:
+        path = Path(path)
+        # No prefix, same reasoning as quarantine_photo -- duplicates has
+        # its own dedicated container.
+        url = self._upload_blob(path, self._duplicates_client, "")
+        record = BackupRecord("duplicate", str(path), self._now(), {**metadata, "reason": reason, "blob_url": url})
+        self._write_index_record(record, {
+            **metadata,
+            "id": self._cosmos_id(metadata),
+            "filename": path.name,
+            "batch_id": metadata.get("batch_id"),
+            "status": "duplicate",
+            "type": "photo",
+            "reason": reason,
+            "blob_url": url,
+            "stored_at": record.stored_at,
+        })
+        return record
+
     def log_deletion(self, path: Path, reason: str, metadata: dict | None = None) -> BackupRecord:
         metadata = metadata or {}
         path = Path(path)
@@ -282,6 +325,7 @@ class AzureBackupStore:
             "photo": (self._container_client, "photos"),
             "document": (self._container_client, "documents"),
             "quarantine": (self._quarantine_client, ""),
+            "duplicate": (self._duplicates_client, ""),
         }.get(kind, (None, None))
 
     def delete_stored(self, kind: str, filename: str, reason: str, metadata: dict | None = None) -> BackupRecord:

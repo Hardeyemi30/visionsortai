@@ -56,6 +56,7 @@ class Config:
     azure_storage_connection_string: str | None = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
     azure_storage_container: str = os.getenv("AZURE_STORAGE_CONTAINER", "analyze-and-backup")
     azure_quarantine_container: str = os.getenv("AZURE_QUARANTINE_CONTAINER", "quarantine")
+    azure_duplicates_container: str = os.getenv("AZURE_DUPLICATES_CONTAINER", "duplicates")
 
     # --- Azure Cosmos DB (shared searchable index -- same database/container
     # the teammate's api/ dashboard code (photos.py, batches.py,

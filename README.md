@@ -35,10 +35,15 @@ See `agent_workflow_diagram.svg`/`.png` for the visual version of this flow.
    still visible for review. True duplicates (resolved locally via
    perceptual hash, before the agent ever runs) still auto-delete
    immediately, since a sharper copy is always kept — nothing unique is
-   ever lost there.
-7. **Backup** (`storage.py`) — approved photos, documents, and quarantined
-   photos all go to Azure Blob Storage (separate `photos`/`documents`/
-   `quarantine` containers), indexed in Cosmos DB using the same
+   ever lost there. A copy of the removed duplicate is kept too (local
+   `local_backup/duplicates/` or the Azure `duplicates` blob container),
+   purely for visibility in the web interface — there's no approve/restore
+   step for these the way there is for quarantine, since the sharper copy
+   was always retained.
+7. **Backup** (`storage.py`) — approved photos, documents, quarantined
+   photos, and removed duplicates all go to Azure Blob Storage (separate
+   `photos`/`documents`/`quarantine`/`duplicates` containers), indexed in
+   Cosmos DB using the same
    database/container the teammate's `api/` dashboard code already queries
    (`id`/`filename`/`batch_id`/`status`/`type` fields — falls back to a
    local JSON-lines log if Cosmos credentials aren't configured).

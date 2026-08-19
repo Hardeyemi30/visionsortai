@@ -19,7 +19,7 @@ from pathlib import Path
 @dataclass
 class ResultRecord:
     filename: str
-    kind: str  # "photo" | "document" | "quarantine" | "deletion" | "uncertain"
+    kind: str  # "photo" | "document" | "quarantine" | "duplicate" | "deletion" | "uncertain"
     stored_at: str
     metadata: dict
     # Set only by load_latest_records_from_cosmos() -- a direct Blob Storage
@@ -66,6 +66,7 @@ def load_latest_records(local_backup_dir: str | Path) -> dict[str, ResultRecord]
 # handled directly in load_latest_records_from_cosmos().
 _STATUS_TO_KIND = {
     "quarantine": "quarantine",
+    "duplicate": "duplicate",
     "deleted": "deletion",
     "review": "uncertain",
 }
@@ -108,7 +109,7 @@ def load_latest_records_from_cosmos(container) -> dict[str, ResultRecord]:
 
 
 def summarize(records: dict[str, ResultRecord]) -> dict:
-    counts = {"photo": 0, "document": 0, "quarantine": 0, "deletion": 0, "uncertain": 0}
+    counts = {"photo": 0, "document": 0, "quarantine": 0, "duplicate": 0, "deletion": 0, "uncertain": 0}
     last_run = None
     for r in records.values():
         counts[r.kind] = counts.get(r.kind, 0) + 1

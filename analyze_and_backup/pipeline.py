@@ -102,7 +102,7 @@ class Pipeline:
             resolution = resolve_duplicate(existing, path, blur)
             if resolution.delete_path == str(path):
                 dedup_meta = {"batch_id": self.batch_id, "file_sha256": metadata.file_sha256}
-                self.backup_store.log_deletion(path, reason="duplicate of an existing sharper photo", metadata=dedup_meta)
+                self.backup_store.remove_duplicate(path, reason="duplicate of an existing sharper photo", metadata=dedup_meta)
                 self._delete_file(path)
                 return PipelineResult(str(path), "deleted_duplicate", f"duplicate of {existing.path}")
             else:
@@ -187,7 +187,7 @@ class Pipeline:
                     # fast-path above), which is what actually runs in
                     # practice. Duplicates keep auto-deleting immediately
                     # (team decision) since the sharper copy is always kept.
-                    self.backup_store.log_deletion(path, reason=result.reasoning, metadata=meta_dict)
+                    self.backup_store.remove_duplicate(path, reason=result.reasoning, metadata=meta_dict)
                     self._delete_file(path)
                     return PipelineResult(str(path), "deleted_duplicate", result.reasoning, result)
             else:
@@ -215,7 +215,7 @@ class Pipeline:
             existing_entry, old_path = pending_supersede
             self.dedup_index.replace(existing_entry, path, phash, blur)
             supersede_meta = {"batch_id": self.batch_id, "file_sha256": metadata.file_sha256}
-            self.backup_store.log_deletion(old_path, reason="duplicate, superseded by a sharper photo", metadata=supersede_meta)
+            self.backup_store.remove_duplicate(old_path, reason="duplicate, superseded by a sharper photo", metadata=supersede_meta)
             self._delete_file(old_path)
         elif existing is None:
             self.dedup_index.add(path, phash, blur)

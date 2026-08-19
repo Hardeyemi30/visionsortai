@@ -136,8 +136,12 @@ def test_duplicate_is_deleted_without_calling_agent(make_noise_image, tmp_path):
 
     assert result1.action == "stored_photo"
     assert result2.action == "deleted_duplicate"
-    assert not second.exists()
+    assert not second.exists()  # removed from the "SD card" ...
+    duplicate_copy = tmp_path / "local_backup" / "duplicates" / "second.png"
+    assert duplicate_copy.exists()  # ... but a copy is kept here so it's still visible
     assert agent.calls == 1  # agent never ran on the duplicate
+    records = _index_records(store)
+    assert records[-1]["kind"] == "duplicate"
 
 
 def test_agent_duplicate_classification_still_auto_deletes(make_noise_image, tmp_path):
@@ -155,8 +159,9 @@ def test_agent_duplicate_classification_still_auto_deletes(make_noise_image, tmp
     assert result.action == "deleted_duplicate"
     assert not photo.exists()
     assert not (tmp_path / "local_backup" / "quarantine" / "weird_duplicate.png").exists()
+    assert (tmp_path / "local_backup" / "duplicates" / "weird_duplicate.png").exists()
     records = _index_records(store)
-    assert records[-1]["kind"] == "deletion"
+    assert records[-1]["kind"] == "duplicate"
 
 
 def _build_pipeline_with_stop_file(agent, tmp_path, stop_file):

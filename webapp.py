@@ -123,6 +123,7 @@ def _get_backup_store():
             connection_string=CONFIG.azure_storage_connection_string,
             container=CONFIG.azure_storage_container,
             quarantine_container=CONFIG.azure_quarantine_container,
+            duplicates_container=CONFIG.azure_duplicates_container,
             cosmos_endpoint=CONFIG.azure_cosmos_endpoint,
             cosmos_key=CONFIG.azure_cosmos_key,
             cosmos_database=CONFIG.azure_cosmos_database,
@@ -168,6 +169,7 @@ _FEED_STYLE = {
     "photo": ("good", "check"),
     "document": ("doc", "doc"),
     "quarantine": ("warn", "warn"),
+    "duplicate": ("bad", "warn"),
     "deletion": ("bad", "warn"),
     "uncertain": ("warn", "warn"),
 }
@@ -188,8 +190,10 @@ def _build_activity_feed(records: dict, limit: int = 8) -> list[dict]:
             subtitle = r.filename
         elif r.kind == "quarantine":
             title, subtitle = "Quarantined for review", r.metadata.get("reason") or r.filename
-        elif r.kind == "deletion":
+        elif r.kind == "duplicate":
             title, subtitle = "Duplicate removed", r.metadata.get("reason") or r.filename
+        elif r.kind == "deletion":
+            title, subtitle = "Removed by you", r.metadata.get("reason") or r.filename
         else:
             title, subtitle = "Kept, low confidence", r.metadata.get("reason") or r.filename
         feed.append({"tone": tone, "icon": icon, "title": title, "subtitle": subtitle, "stored_at": r.stored_at})
@@ -351,7 +355,7 @@ def detail(filename):
     clicking a thumbnail opens, instead of just the raw image."""
     records = load_records()
     record = records.get(filename)
-    if record is None or record.kind not in ("photo", "document", "quarantine"):
+    if record is None or record.kind not in ("photo", "document", "quarantine", "duplicate"):
         # A filename's most recent index record can be a "deletion" or
         # "uncertain" log entry instead of the viewable item itself (e.g.
         # right after someone deletes it via the web UI) -- treat those the
@@ -365,6 +369,8 @@ def detail(filename):
         display_url = url_for("media_document", filename=record.filename)
     elif record.kind == "quarantine":
         display_url = url_for("media_quarantine", filename=record.filename)
+    elif record.kind == "duplicate":
+        display_url = url_for("media_duplicate", filename=record.filename)
     else:
         display_url = url_for("media_photo", filename=record.filename)
 
@@ -395,14 +401,17 @@ def documents():
 
 @app.route("/activity")
 def activity():
-    """Quarantined (bad, held for review) + deletions (duplicates, no copy
-    kept) + uncertain items -- the audit trail."""
+    """Quarantined (bad, held for review) + duplicates (auto-removed by the
+    pipeline, copy kept for visibility) + uncertain items + deletions
+    (manually removed via the web interface, no copy kept) -- the audit
+    trail."""
     records = load_records()
     quarantined = filter_by_kind(records, "quarantine")
+    duplicates = filter_by_kind(records, "duplicate")
     deletions = filter_by_kind(records, "deletion")
     uncertain = filter_by_kind(records, "uncertain")
     return render_template(
-        "activity.html", quarantined=quarantined, deletions=deletions, uncertain=uncertain
+        "activity.html", quarantined=quarantined, duplicates=duplicates, deletions=deletions, uncertain=uncertain
     )
 
 
@@ -427,7 +436,14 @@ def media_quarantine(filename):
     return send_from_directory(folder, filename)
 
 
-_DELETABLE_KINDS = {"photo", "document", "quarantine"}
+@app.route("/media/duplicates/<path:filename>")
+def media_duplicate(filename):
+    folder = backup_dir() / "duplicates"
+    _safe_media_path(folder, filename)
+    return send_from_directory(folder, filename)
+
+
+_DELETABLE_KINDS = {"photo", "document", "quarantine", "duplicate"}
 
 
 @app.route("/delete/<path:filename>", methods=["POST"])

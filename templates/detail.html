@@ -7,7 +7,7 @@
     <p class="page-label">{{ record.kind }}</p>
     <h1 class="page-title" style="word-break:break-all">{{ record.filename }}</h1>
   </div>
-  {% if record.kind in ("photo", "document", "quarantine") %}
+  {% if record.kind in ("photo", "document", "quarantine", "duplicate") %}
   <form method="post" action="{{ url_for('delete_record', filename=record.filename) }}" onsubmit="return confirm('Delete {{ record.filename }}? This removes the stored copy permanently.');">
     <input type="hidden" name="next" value="{{ url_for('dashboard') }}">
     <button type="submit" class="btn btn-ghost" style="color:var(--bad);border-color:var(--bad)">
