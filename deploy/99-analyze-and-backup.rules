@@ -3,10 +3,17 @@
 # a USB card reader (both appear as /dev/sdX on the Pi; the Pi's own boot
 # SD card is /dev/mmcblk0 and is NOT matched by this rule).
 #
+# Also fires for the SPI-attached MH-SD card module (bound via the mmc_spi
+# device tree overlay -- see deploy/mmc-spi-overlay/), which enumerates as
+# /dev/mmcblk1 (or higher) rather than /dev/sdX. mmcblk0 is always the Pi's
+# own boot SD card and is excluded here the same way sdX excludes the Pi
+# itself above.
+#
 # Install: sudo cp 99-analyze-and-backup.rules /etc/udev/rules.d/
 #          sudo udevadm control --reload
 #
 # Starts the templated analyze-and-backup@.service below, passing the
-# partition's kernel name (e.g. "sda1") as the instance name.
+# partition's kernel name (e.g. "sda1" or "mmcblk1p1") as the instance name.
 
 SUBSYSTEM=="block", KERNEL=="sd[a-z][0-9]", ACTION=="add", ENV{ID_FS_TYPE}!="", TAG+="systemd", ENV{SYSTEMD_WANTS}+="analyze-and-backup@%k.service"
+SUBSYSTEM=="block", KERNEL=="mmcblk[1-9]p[0-9]", ACTION=="add", ENV{ID_FS_TYPE}!="", TAG+="systemd", ENV{SYSTEMD_WANTS}+="analyze-and-backup@%k.service"

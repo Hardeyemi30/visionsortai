@@ -38,6 +38,7 @@ class BackupStore(Protocol):
     def quarantine_photo(self, path: Path, reason: str, metadata: dict) -> BackupRecord: ...
     def log_deletion(self, path: Path, reason: str, metadata: dict | None = None) -> BackupRecord: ...
     def log_uncertain(self, path: Path, reason: str, metadata: dict | None = None) -> BackupRecord: ...
+    def delete_stored(self, kind: str, filename: str, reason: str, metadata: dict | None = None) -> BackupRecord: ...
 
 
 class LocalBackupStore:
@@ -89,6 +90,22 @@ class LocalBackupStore:
 
     def log_uncertain(self, path: Path, reason: str, metadata: dict | None = None) -> BackupRecord:
         record = BackupRecord("uncertain", str(path), self._now(), {**(metadata or {}), "reason": reason})
+        self._append_index(record)
+        return record
+
+    # Kind -> the folder it's actually sitting in under base_dir, for a
+    # user-initiated delete from the web interface (as opposed to
+    # log_deletion() above, which is the pipeline discarding a duplicate
+    # that was never stored in the first place).
+    _KIND_FOLDER = {"photo": "photos", "document": "documents", "quarantine": "quarantine"}
+
+    def delete_stored(self, kind: str, filename: str, reason: str, metadata: dict | None = None) -> BackupRecord:
+        folder = self._KIND_FOLDER.get(kind)
+        if folder is None:
+            raise ValueError(f"delete_stored: unsupported kind {kind!r}")
+        target = self.base_dir / folder / filename
+        target.unlink(missing_ok=True)
+        record = BackupRecord("deletion", str(target), self._now(), {**(metadata or {}), "reason": reason})
         self._append_index(record)
         return record
 
@@ -250,6 +267,50 @@ class AzureBackupStore:
             "batch_id": metadata.get("batch_id"),
             "status": "review",
             "type": "photo",
+            "reason": reason,
+            "stored_at": record.stored_at,
+        })
+        return record
+
+    # kind -> (which blob container it was uploaded to, the folder prefix
+    # used in the blob name) -- mirrors the prefixes upload_photo() /
+    # upload_document_record() / quarantine_photo() actually wrote with
+    # above, so a user-initiated delete from the web interface removes the
+    # exact blob that's really there.
+    def _blob_location(self, kind: str):
+        return {
+            "photo": (self._container_client, "photos"),
+            "document": (self._container_client, "documents"),
+            "quarantine": (self._quarantine_client, ""),
+        }.get(kind, (None, None))
+
+    def delete_stored(self, kind: str, filename: str, reason: str, metadata: dict | None = None) -> BackupRecord:
+        metadata = metadata or {}
+        client, prefix = self._blob_location(kind)
+        if client is None:
+            raise ValueError(f"delete_stored: unsupported kind {kind!r}")
+
+        blob_name = f"{prefix}/{filename}" if prefix else filename
+        try:
+            client.delete_blob(blob_name)
+        except Exception:
+            pass  # already gone, or never made it to blob storage -- still record the deletion below
+
+        record = BackupRecord("deletion", filename, self._now(), {**metadata, "reason": reason})
+        # Reusing the same Cosmos id (derived from file_sha256, same as
+        # every other write here) means this upsert replaces the existing
+        # "approved"/"quarantine" document in place instead of leaving a
+        # stale duplicate behind -- falls back to a fresh id only if the
+        # caller couldn't supply the original metadata (e.g. file_sha256
+        # missing), in which case the old doc is orphaned but the deletion
+        # still gets recorded.
+        self._write_index_record(record, {
+            **metadata,
+            "id": self._cosmos_id(metadata),
+            "filename": filename,
+            "batch_id": metadata.get("batch_id"),
+            "status": "deleted",
+            "type": "document" if kind == "document" else "photo",
             "reason": reason,
             "stored_at": record.stored_at,
         })

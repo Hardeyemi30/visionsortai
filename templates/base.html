@@ -3,28 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Analyze and Backup{% endblock %}</title>
+  <title>{% block title %}Overview{% endblock %} &middot; VisionSortAI</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script>
     // Applied before body paints so there's no flash of the wrong theme.
+    // Default is dark (the approved design) when nothing is saved yet.
     (function () {
       var saved = localStorage.getItem("theme");
-      var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      var theme = saved || "dark";
       document.documentElement.setAttribute("data-theme", theme);
     })();
   </script>
 </head>
 <body>
   <nav class="topnav">
-    <a href="/" class="brand">Analyze and Backup</a>
-    <a href="/photos">Photos</a>
-    <a href="/documents">Documents</a>
-    <a href="/activity">Activity</a>
-    <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">&#9789;</button>
+    <a href="{{ url_for('dashboard') }}" class="brand"><span class="dot"></span>VisionSortAI</a>
+    <div class="navpill">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if active_page == 'dashboard' else '' }}">Overview</a>
+      <a href="{{ url_for('photos') }}" class="{{ 'active' if active_page == 'photos' else '' }}">Photos</a>
+      <a href="{{ url_for('documents') }}" class="{{ 'active' if active_page == 'documents' else '' }}">Documents</a>
+      <a href="{{ url_for('activity') }}" class="{{ 'active' if active_page == 'activity' else '' }}">Activity</a>
+    </div>
+    <div class="spacer"></div>
+    <div class="actions">
+      <a href="{{ url_for('upload') }}" class="btn btn-accent">
+        <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5l5 5M5 20h14"/></svg>
+        Add photos
+      </a>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">&#9789;</button>
+    </div>
   </nav>
-  <main>
+  {% block body %}
+  <main class="narrow">
     {% block content %}{% endblock %}
   </main>
+  {% endblock %}
   <script>
     (function () {
       var btn = document.getElementById("theme-toggle");

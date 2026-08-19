@@ -1,42 +1,61 @@
 {% extends "base.html" %}
 {% block title %}{{ record.filename }}{% endblock %}
 {% block content %}
-<p><a href="javascript:history.back()">&larr; Back</a></p>
-<h1>{{ record.filename }}</h1>
-<p class="muted">{{ record.kind }}</p>
+<a class="back-link" href="javascript:history.back()">&larr; Back</a>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+  <div>
+    <p class="page-label">{{ record.kind }}</p>
+    <h1 class="page-title" style="word-break:break-all">{{ record.filename }}</h1>
+  </div>
+  {% if record.kind in ("photo", "document", "quarantine") %}
+  <form method="post" action="{{ url_for('delete_record', filename=record.filename) }}" onsubmit="return confirm('Delete {{ record.filename }}? This removes the stored copy permanently.');">
+    <input type="hidden" name="next" value="{{ url_for('dashboard') }}">
+    <button type="submit" class="btn btn-ghost" style="color:var(--bad);border-color:var(--bad)">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>
+      Delete
+    </button>
+  </form>
+  {% endif %}
+</div>
 
 <img src="{{ display_url }}" alt="{{ record.filename }}" class="detail-image">
 
-<table class="detail-table">
+<div class="detail-panel">
   {% if record.metadata.timestamp %}
-  <tr><th>Taken</th><td>{{ record.metadata.timestamp }}</td></tr>
+  <div class="detail-row"><div class="k">Taken</div><div class="v">{{ record.metadata.timestamp }}</div></div>
   {% endif %}
-  <tr><th>Processed</th><td>{{ record.stored_at }}</td></tr>
+  <div class="detail-row"><div class="k">Processed</div><div class="v">{{ record.stored_at }}</div></div>
   {% if record.metadata.camera_model %}
-  <tr><th>Camera</th><td>{{ record.metadata.camera_model }}</td></tr>
+  <div class="detail-row"><div class="k">Camera</div><div class="v">{{ record.metadata.camera_model }}</div></div>
   {% endif %}
   {% if maps_url %}
-  <tr><th>Location</th><td><a href="{{ maps_url }}" target="_blank">{{ record.metadata.gps_latitude }}, {{ record.metadata.gps_longitude }} (view on map)</a></td></tr>
+  <div class="detail-row">
+    <div class="k">Location</div>
+    <div class="v">
+      {% if record.metadata.location_label %}{{ record.metadata.location_label }} &mdash; {% endif %}
+      <a href="{{ maps_url }}" target="_blank">{{ record.metadata.gps_latitude }}, {{ record.metadata.gps_longitude }} (view on map)</a>
+    </div>
+  </div>
   {% else %}
-  <tr><th>Location</th><td class="muted">No GPS data</td></tr>
+  <div class="detail-row"><div class="k">Location</div><div class="v muted">No GPS data</div></div>
   {% endif %}
   {% if record.metadata.category %}
-  <tr><th>Category</th><td>{{ record.metadata.category }}</td></tr>
+  <div class="detail-row"><div class="k">Category</div><div class="v">{{ record.metadata.category }}</div></div>
   {% endif %}
   {% if record.metadata.extracted_text %}
-  <tr><th>Extracted text</th><td><pre class="extracted-text">{{ record.metadata.extracted_text }}</pre></td></tr>
+  <div class="detail-row"><div class="k">Extracted text</div><div class="v"><pre class="extracted-text">{{ record.metadata.extracted_text }}</pre></div></div>
   {% endif %}
   {% if record.metadata.reason %}
-  <tr><th>Reason</th><td>{{ record.metadata.reason }}</td></tr>
+  <div class="detail-row"><div class="k">Reason</div><div class="v">{{ record.metadata.reason }}</div></div>
   {% endif %}
-  {% if record.metadata.agent_confidence is not none %}
-  <tr><th>AI confidence</th><td>{{ "%.0f"|format(record.metadata.agent_confidence * 100) }}%</td></tr>
+  {% if record.metadata.get('agent_confidence') is not none %}
+  <div class="detail-row"><div class="k">AI confidence</div><div class="v">{{ "%.0f"|format(record.metadata.get('agent_confidence') * 100) }}%</div></div>
   {% endif %}
   {% if record.metadata.agent_reasoning %}
-  <tr><th>AI reasoning</th><td>{{ record.metadata.agent_reasoning }}</td></tr>
+  <div class="detail-row"><div class="k">AI reasoning</div><div class="v">{{ record.metadata.agent_reasoning }}</div></div>
   {% endif %}
   {% if record.metadata.file_sha256 %}
-  <tr><th>File hash</th><td class="mono">{{ record.metadata.file_sha256 }}</td></tr>
+  <div class="detail-row"><div class="k">File hash</div><div class="v mono">{{ record.metadata.file_sha256 }}</div></div>
   {% endif %}
-</table>
+</div>
 {% endblock %}

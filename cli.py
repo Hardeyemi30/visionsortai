@@ -19,6 +19,14 @@ from analyze_and_backup.config import CONFIG
 from analyze_and_backup.pipeline import Pipeline
 from analyze_and_backup.storage import AzureBackupStore, LocalBackupStore
 
+# Coordination file for pi_status_box.py: its presence means "actively
+# processing a card", which the status box polls to know when to show the
+# matrix loading animation. Same directory/cooperative-flag-file idea as
+# CONFIG.stop_file_path (the web interface's Stop button), just the
+# opposite direction -- this one signals "I'm running" instead of "please
+# stop". Harmless if pi_status_box.py isn't installed/running at all.
+JOB_FLAG_PATH = Path(CONFIG.local_backup_dir) / "PI_STATUS_JOB_RUNNING"
+
 
 def build_pipeline(args) -> Pipeline:
     if args.mock_agent:
@@ -71,7 +79,16 @@ def main():
     args = parser.parse_args()
 
     pipeline = build_pipeline(args)
-    results = pipeline.process_card(Path(args.mount_path))
+
+    JOB_FLAG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    JOB_FLAG_PATH.touch()
+    try:
+        results = pipeline.process_card(Path(args.mount_path))
+    finally:
+        # Always clear the flag, even if process_card raised -- otherwise
+        # the status box would be stuck showing "loading" forever after a
+        # crash instead of reflecting reality.
+        JOB_FLAG_PATH.unlink(missing_ok=True)
 
     counts: dict[str, int] = {}
     for r in results:

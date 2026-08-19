@@ -1,67 +1,143 @@
-  {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block content %}
-<h1>Latest results</h1>
-{% if summary.last_run %}
-  <p class="muted">Last run: {{ summary.last_run }}</p>
-{% else %}
-  <p class="muted">No pipeline runs yet. Insert an SD card or USB drive to get started.</p>
-{% endif %}
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block body %}
+<main class="shell two-col">
+  <div class="col-left">
+    <p class="page-label">Latest run</p>
 
-{% if run_active %}
-<div class="run-banner {{ 'stopping' if stop_requested else '' }}">
-  <div>
-    {% if stop_requested %}
-      <strong>Stopping&hellip;</strong> finishing the current photo, then it will halt.
+    {% if run_active %}
+    <div class="run-banner {{ 'stopping' if stop_requested else '' }}">
+      <div>
+        {% if stop_requested %}
+          <strong>Stopping&hellip;</strong> finishing the current photo, then it will halt.
+        {% else %}
+          <strong>A card is currently being processed.</strong> This page will keep updating as it runs.
+        {% endif %}
+      </div>
+      {% if not stop_requested %}
+      <form action="{{ url_for('control_stop') }}" method="post" onsubmit="return confirm('Stop the current run? Photos already processed stay backed up -- only photos not yet reached will be skipped.');">
+        <button type="submit" class="stop-btn">Stop</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="hero-num">{{ summary.counts.photo }}</div>
+    <div class="hero-label">
+      photos kept
+      {% if summary.last_run %}&middot; last run {{ summary.last_run[:19].replace('T', ' ') }}{% else %}&middot; no pipeline runs yet -- insert a card, or <a href="{{ url_for('upload') }}" style="color:var(--accent)">add photos</a> to get started{% endif %}
+    </div>
+    <div class="hero-sub">
+      <div class="doc"><b>{{ summary.counts.document }}</b>documents</div>
+      <div class="warn"><b>{{ summary.counts.quarantine }}</b>quarantined</div>
+      <div class="bad"><b>{{ summary.counts.deletion }}</b>removed</div>
+      <div class="warn"><b>{{ summary.counts.uncertain }}</b>uncertain</div>
+    </div>
+
+    {% if recent_photos %}
+    <div class="section-head"><h2>Recent photos</h2><a href="{{ url_for('photos') }}">View all &rarr;</a></div>
+    <div class="photo-strip">
+      {% for p in recent_photos[:8] %}
+        <div class="pcard">
+          <a class="pcard-link" href="{{ url_for('detail', filename=p.filename) }}">
+            <img src="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
+            {% if p.metadata.location_label %}
+            <span class="pin"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>{{ p.metadata.location_label }}</span>
+            {% endif %}
+          </a>
+          <form class="pcard-del" method="post" action="{{ url_for('delete_record', filename=p.filename) }}" onsubmit="return confirm('Delete {{ p.filename }}? This removes the stored copy permanently.');">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="del-btn" aria-label="Delete photo">
+              <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>
+            </button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
     {% else %}
-      <strong>A card is currently being processed.</strong> This page will keep updating as it runs.
+    <div class="section-block">
+      <p class="muted">No photos kept yet. <a href="{{ url_for('upload') }}" style="color:var(--accent)">Add some through the website</a> or insert a card.</p>
+    </div>
+    {% endif %}
+
+    <div class="section-head"><h2>Activity</h2></div>
+    {% if activity_feed %}
+    <div class="feed">
+      {% for item in activity_feed %}
+      <div class="feed-item">
+        <div class="feed-ic {{ item.tone }}">
+          {% if item.icon == 'check' %}
+          <svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+          {% elif item.icon == 'doc' %}
+          <svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4z"/></svg>
+          {% else %}
+          <svg viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M12 3l9 16H3z"/></svg>
+          {% endif %}
+        </div>
+        <div class="feed-body">
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.subtitle }}</p>
+        </div>
+        <div class="feed-time">{{ item.stored_at[:19].replace('T', ' ') if item.stored_at else '' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">Nothing yet.</p>
     {% endif %}
   </div>
-  {% if not stop_requested %}
-  <form action="{{ url_for('control_stop') }}" method="post" onsubmit="return confirm('Stop the current run? Photos already processed stay backed up -- only photos not yet reached will be skipped.');">
-    <button type="submit" class="stop-btn">Stop</button>
-  </form>
-  {% endif %}
-</div>
-{% endif %}
 
-<div class="stat-grid">
-  <div class="stat-card good"><div class="stat-number">{{ summary.counts.photo }}</div><div>Photos kept</div></div>
-  <div class="stat-card doc"><div class="stat-number">{{ summary.counts.document }}</div><div>Documents found</div></div>
-  <div class="stat-card warn"><div class="stat-number">{{ summary.counts.quarantine }}</div><div>Quarantined</div></div>
-  <div class="stat-card bad"><div class="stat-number">{{ summary.counts.deletion }}</div><div>Removed (duplicates)</div></div>
-  <div class="stat-card warn"><div class="stat-number">{{ summary.counts.uncertain }}</div><div>Uncertain</div></div>
-</div>
+  <div class="col-right">
+    <div class="panel">
+      <div class="panel-title">Where these were taken</div>
+      {% if locations %}
+        {% for loc in locations %}
+        <div class="loc-row">
+          <span class="loc-name">
+            <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+            <span>{{ loc.label }}</span>
+          </span>
+          <span class="loc-count">
+            {{ loc.count }} photo{{ 's' if loc.count != 1 else '' }}
+            {% if loc.maps_url %} &middot; <a href="{{ loc.maps_url }}" target="_blank" style="color:var(--accent)">map</a>{% endif %}
+          </span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p class="empty-note">No photos with location data yet -- most cameras/phones only tag GPS when location services were on.</p>
+      {% endif %}
+    </div>
 
-{% if summary.counts.quarantine %}
-<p><a href="/activity">See quarantined photos &rarr;</a></p>
-{% endif %}
+    <div class="panel">
+      <div class="panel-title">Status box</div>
+      <div class="srow"><span><span class="dot"></span>Pipeline</span><b>{{ 'Processing…' if run_active else 'Idle' }}</b></div>
+      <div class="srow"><span>Last run</span><b>{{ summary.last_run[:19].replace('T', ' ') if summary.last_run else '—' }}</b></div>
+      <div class="srow"><span>With location</span><b>{{ locations|sum(attribute='count') }} / {{ summary.counts.photo }}</b></div>
+    </div>
 
-{% if recent_photos %}
-<h2>Recent photos</h2>
-<div class="gallery">
-  {% for p in recent_photos %}
-    <a href="{{ url_for('detail', filename=p.filename) }}">
-      <img src="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
-    </a>
-  {% endfor %}
-</div>
-<p><a href="/photos">See all photos &rarr;</a></p>
-{% endif %}
-
-{% if recent_documents %}
-<h2>Recent documents</h2>
-<div class="doc-list">
-  {% for d in recent_documents %}
-    <a class="doc-card" href="{{ url_for('detail', filename=d.filename) }}">
-      <img src="{{ d.image_url or url_for('media_document', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
-      <div>
-        <strong>{{ d.metadata.category or "document" }}</strong>
-        <p>{{ (d.metadata.extracted_text or "")[:120] }}{% if (d.metadata.extracted_text or "")|length > 120 %}...{% endif %}</p>
+    {% if recent_documents %}
+    <div class="panel">
+      <div class="panel-title">Recent documents</div>
+      {% for d in recent_documents %}
+      <div class="doc-mini">
+        <a class="doc-mini-link" href="{{ url_for('detail', filename=d.filename) }}">
+          <img class="th" src="{{ d.image_url or url_for('media_document', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
+          <div>
+            <strong>{{ d.metadata.category or "Document" }}</strong>
+            <span>{{ (d.metadata.extracted_text or d.filename)[:60] }}</span>
+          </div>
+        </a>
+        <form class="row-del" method="post" action="{{ url_for('delete_record', filename=d.filename) }}" onsubmit="return confirm('Delete {{ d.filename }}? This removes the stored copy permanently.');">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit" class="del-btn" aria-label="Delete document">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>
+          </button>
+        </form>
       </div>
-    </a>
-  {% endfor %}
-</div>
-<p><a href="/documents">Search all documents &rarr;</a></p>
-{% endif %}
+      {% endfor %}
+      <div style="margin-top:10px"><a href="{{ url_for('documents') }}" style="font-size:12.5px;color:var(--accent);text-decoration:none;font-weight:700">Search all &rarr;</a></div>
+    </div>
+    {% endif %}
+  </div>
+</main>
 {% endblock %}

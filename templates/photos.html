@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Photos{% endblock %}
 {% block content %}
-<h1>Photos ({{ photos|length }})</h1>
+<p class="page-label">Library</p>
+<h1 class="page-title">Photos ({{ photos|length }})</h1>
+<p class="page-sub">Every photo the pipeline approved and kept, newest first by default.</p>
 
 <form method="get" class="search-form">
   <select name="sort">
@@ -19,12 +21,26 @@
   <button type="submit">Apply</button>
 </form>
 
+{% if photos %}
 <div class="gallery">
   {% for p in photos %}
-    <a href="{{ url_for('detail', filename=p.filename) }}">
-      <img src="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
-    </a>
+    <div class="pcard">
+      <a class="pcard-link" href="{{ url_for('detail', filename=p.filename) }}">
+        <img src="{{ p.image_url or url_for('media_photo', filename=p.filename) }}" loading="lazy" alt="{{ p.filename }}">
+        {% if p.metadata.location_label %}
+        <span class="pin"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>{{ p.metadata.location_label }}</span>
+        {% endif %}
+      </a>
+      <form class="pcard-del" method="post" action="{{ url_for('delete_record', filename=p.filename) }}" onsubmit="return confirm('Delete {{ p.filename }}? This removes the stored copy permanently.');">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button type="submit" class="del-btn" aria-label="Delete photo">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>
+        </button>
+      </form>
+    </div>
   {% endfor %}
 </div>
-{% if not photos %}<p class="muted">No approved photos match.</p>{% endif %}
+{% else %}
+<p class="muted">No approved photos match.</p>
+{% endif %}
 {% endblock %}

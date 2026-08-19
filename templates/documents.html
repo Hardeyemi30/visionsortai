@@ -1,24 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Documents{% endblock %}
 {% block content %}
-<h1>Documents ({{ documents|length }})</h1>
+<p class="page-label">Library</p>
+<h1 class="page-title">Documents ({{ documents|length }})</h1>
+<p class="page-sub">Receipts, IDs, invoices and anything else the agent classified as a document instead of a photo.</p>
+
 <form method="get" class="search-form">
   <input type="text" name="q" placeholder="Search text or category..." value="{{ query }}">
   <label class="date-label">From <input type="date" name="date_from" value="{{ date_from }}"></label>
   <label class="date-label">To <input type="date" name="date_to" value="{{ date_to }}"></label>
   <button type="submit">Search</button>
 </form>
+
+{% if documents %}
 <div class="doc-list">
   {% for d in documents %}
-    <a class="doc-card" href="{{ url_for('detail', filename=d.filename) }}">
-      <img src="{{ d.image_url or url_for('media_document', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
-      <div>
-        <strong>{{ d.metadata.category or "document" }}</strong>
-        <span class="muted">{{ d.metadata.timestamp or d.stored_at }}</span>
-        <p>{{ d.metadata.extracted_text or "(no text extracted)" }}</p>
-      </div>
-    </a>
+    <div class="doc-card">
+      <a class="doc-card-link" href="{{ url_for('detail', filename=d.filename) }}">
+        <img src="{{ d.image_url or url_for('media_document', filename=d.filename) }}" loading="lazy" alt="{{ d.filename }}">
+        <div>
+          <strong>{{ d.metadata.category or "document" }}</strong>
+          <p>{{ d.metadata.extracted_text or "(no text extracted)" }}</p>
+          <div class="muted-line">{{ d.metadata.timestamp or d.stored_at }}</div>
+        </div>
+      </a>
+      <form class="row-del" method="post" action="{{ url_for('delete_record', filename=d.filename) }}" onsubmit="return confirm('Delete {{ d.filename }}? This removes the stored copy permanently.');">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button type="submit" class="del-btn" aria-label="Delete document">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>
+        </button>
+      </form>
+    </div>
   {% endfor %}
 </div>
-{% if not documents %}<p class="muted">No documents match.</p>{% endif %}
+{% else %}
+<p class="muted">No documents match.</p>
+{% endif %}
 {% endblock %}

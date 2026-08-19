@@ -1,0 +1,51 @@
+/*
+ * Binds the mmc_spi kernel driver to the MH-SD card module wired to SPI0
+ * CE0 (GPIO8 / physical pin 24), so the card shows up as a normal block
+ * device (/dev/mmcblk1, typically) instead of just a raw SPI device.
+ *
+ * Raspberry Pi OS enables BOTH spidev0.0 (CE0) and spidev0.1 (CE1) by
+ * default whenever `dtparam=spi=on` is set -- fragment@0 below disables
+ * the CE0 one (&spidev0) so our mmc-spi-slot node can claim that same
+ * chip-select instead without the two fighting over it. CE1 (&spidev1)
+ * is untouched and stays available for anything else you wire there later.
+ *
+ * NOTE: this is a best-effort overlay built from the mainline kernel's
+ * mmc-spi-slot binding docs and Raspberry Pi's own spi0-Ncs overlay
+ * pattern, not copied from a confirmed working example for this exact
+ * board -- treat the first boot as a test. If /dev/mmcblk1 doesn't show
+ * up, check `dmesg | grep -iE "mmc|spi"` and we'll adjust from there.
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@1 {
+		target = <&spi0>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			mhsd: mhsd@0 {
+				compatible = "mmc-spi-slot";
+				reg = <0>;
+				/* Conservative clock -- breadboard jumper wires are prone
+				 * to signal integrity issues at higher SPI speeds. Try
+				 * raising this once it's confirmed working reliably. */
+				spi-max-frequency = <8000000>;
+				voltage-ranges = <3300 3300>;
+				status = "okay";
+			};
+		};
+	};
+};

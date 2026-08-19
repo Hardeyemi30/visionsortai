@@ -1,0 +1,26 @@
+# The physical status box: a 10-segment LED bar graph showing readiness
+# (power/internet/Azure) and, while a card is being processed, a chase/flash
+# "busy" animation instead. Always-on, independent of card processing --
+# starts on boot, restarts if it crashes, and keeps running between card
+# insertions (unlike analyze-and-backup@.service, which is one-shot per
+# card). The 8x8 matrix and the physical safe-shutdown button were both
+# dropped from this project -- see pi_status_box.py's module docstring.
+#
+# Needs GPIO access: __PROJECT_USER__ must be in the `gpio` group (true by
+# default for the standard first-user account on Raspberry Pi OS -- check
+# with `groups __PROJECT_USER__` if this fails to start).
+
+[Unit]
+Description=Analyze and Backup physical status box (bar graph)
+After=local-fs.target
+
+[Service]
+Type=simple
+WorkingDirectory=__PROJECT_DIR__
+ExecStart=__PROJECT_DIR__/.venv/bin/python3 __PROJECT_DIR__/pi_status_box.py
+Restart=on-failure
+RestartSec=3
+User=__PROJECT_USER__
+
+[Install]
+WantedBy=multi-user.target

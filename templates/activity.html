@@ -1,38 +1,63 @@
 {% extends "base.html" %}
 {% block title %}Activity{% endblock %}
 {% block content %}
-<h1>Activity log</h1>
+<p class="page-label">Audit trail</p>
+<h1 class="page-title">Activity log</h1>
+<p class="page-sub">Everything the pipeline didn't simply keep as an approved photo -- held for review, deduped, or too uncertain to act on.</p>
 
-<h2>Quarantined ({{ quarantined|length }})</h2>
-<p class="muted">Flagged bad (blurry/dark/etc.) and held for review -- not deleted, safely copied here first.</p>
-<div class="doc-list">
-  {% for q in quarantined %}
-    <a class="doc-card" href="{{ url_for('detail', filename=q.filename) }}">
-      <img src="{{ q.image_url or url_for('media_quarantine', filename=q.filename) }}" loading="lazy" alt="{{ q.filename }}">
-      <div>
-        <strong>{{ q.filename }}</strong>
-        <p>{{ q.metadata.reason }}</p>
-      </div>
-    </a>
-  {% endfor %}
-  {% if not quarantined %}<p class="muted">None.</p>{% endif %}
+<div class="stat-grid">
+  <div class="stat-tile warn"><div class="n">{{ quarantined|length }}</div><div class="l">Quarantined</div></div>
+  <div class="stat-tile warn"><div class="n">{{ uncertain|length }}</div><div class="l">Uncertain</div></div>
+  <div class="stat-tile bad"><div class="n">{{ deletions|length }}</div><div class="l">Removed (duplicates)</div></div>
 </div>
 
-<h2>Uncertain ({{ uncertain|length }})</h2>
-<p class="muted">Low-confidence items the agent didn't act on -- kept, not deleted.</p>
-<ul class="log-list">
-  {% for u in uncertain %}
-    <li><strong>{{ u.filename }}</strong> -- {{ u.metadata.reason }}</li>
-  {% endfor %}
-  {% if not uncertain %}<li class="muted">None.</li>{% endif %}
-</ul>
+<div class="section-block">
+  <div class="section-head"><h2>Quarantined ({{ quarantined|length }})</h2></div>
+  <p class="muted" style="margin-top:-6px">Flagged bad (blurry/dark/etc.) and held for review &mdash; not deleted, safely copied here first.</p>
+  {% if quarantined %}
+  <div class="doc-list">
+    {% for q in quarantined %}
+      <div class="doc-card">
+        <a class="doc-card-link" href="{{ url_for('detail', filename=q.filename) }}">
+          <img src="{{ q.image_url or url_for('media_quarantine', filename=q.filename) }}" loading="lazy" alt="{{ q.filename }}">
+          <div>
+            <strong style="word-break:break-all">{{ q.filename }}</strong>
+            <p>{{ q.metadata.reason }}</p>
+          </div>
+        </a>
+        <form class="row-del" method="post" action="{{ url_for('delete_record', filename=q.filename) }}" onsubmit="return confirm('Delete {{ q.filename }}? This removes the stored copy permanently.');">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit" class="del-btn" aria-label="Delete quarantined photo">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m-8 0l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/></svg>
+          </button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">None.</p>
+  {% endif %}
+</div>
 
-<h2>Removed ({{ deletions|length }})</h2>
-<p class="muted">Duplicates -- deleted immediately, no copy kept (a sharper copy was always retained instead).</p>
-<ul class="log-list">
-  {% for d in deletions %}
-    <li><strong>{{ d.filename }}</strong> -- {{ d.metadata.reason }}</li>
-  {% endfor %}
-  {% if not deletions %}<li class="muted">None.</li>{% endif %}
-</ul>
+<div class="section-block">
+  <div class="section-head"><h2>Uncertain ({{ uncertain|length }})</h2></div>
+  <p class="muted" style="margin-top:-6px">Low-confidence items the agent didn't act on &mdash; kept, not deleted.</p>
+  <ul class="log-list">
+    {% for u in uncertain %}
+      <li><span class="fname">{{ u.filename }}</span><span class="reason">{{ u.metadata.reason }}</span></li>
+    {% endfor %}
+    {% if not uncertain %}<li class="muted">None.</li>{% endif %}
+  </ul>
+</div>
+
+<div class="section-block">
+  <div class="section-head"><h2>Removed ({{ deletions|length }})</h2></div>
+  <p class="muted" style="margin-top:-6px">Duplicates &mdash; deleted immediately, no copy kept (a sharper copy was always retained instead).</p>
+  <ul class="log-list">
+    {% for d in deletions %}
+      <li><span class="fname">{{ d.filename }}</span><span class="reason">{{ d.metadata.reason }}</span></li>
+    {% endfor %}
+    {% if not deletions %}<li class="muted">None.</li>{% endif %}
+  </ul>
+</div>
 {% endblock %}

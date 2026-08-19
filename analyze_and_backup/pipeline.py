@@ -23,6 +23,7 @@ from pathlib import Path
 from .agent import AgentResult, VisionAgent
 from .config import Config
 from .dedup import DuplicateIndex, compute_phash, resolve_duplicate
+from .geocode import reverse_geocode
 from .metadata import PhotoMetadata, extract_metadata
 from .quality import (
     blur_score,
@@ -144,6 +145,20 @@ class Pipeline:
             "agent_confidence": result.confidence,
             "agent_reasoning": result.reasoning,
         }
+
+        # Resolved once here, at pipeline time, rather than lazily in the
+        # web app on every page load -- a page with a dozen photos from the
+        # same place would otherwise re-hit (and rate-limit against)
+        # Nominatim on every single visit. Only real network cost is for a
+        # genuinely new place; everything else is an instant cache hit (see
+        # geocode.py). Left out of meta_dict entirely (not even as None)
+        # when there's no GPS fix, or if the lookup couldn't be resolved --
+        # templates already treat a missing location_label as "no place
+        # name available" and fall back to raw coordinates.
+        if metadata.gps_latitude is not None and metadata.gps_longitude is not None:
+            label = reverse_geocode(metadata.gps_latitude, metadata.gps_longitude, self.config.local_backup_dir)
+            if label:
+                meta_dict["location_label"] = label
 
         if result.classification in ("duplicate", "bad"):
             if result.confidence >= floor:
