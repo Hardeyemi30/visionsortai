@@ -24,7 +24,7 @@ echo "Running as:         $PROJECT_USER"
 
 if [ ! -x "$PROJECT_DIR/.venv/bin/python3" ]; then
   echo "WARNING: $PROJECT_DIR/.venv/bin/python3 not found."
-  echo "Set up the virtual environment first (python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt)"
+  echo "Set up the virtual environment first (python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt -r requirements-pi.txt)"
   exit 1
 fi
 

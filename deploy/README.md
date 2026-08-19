@@ -11,10 +11,17 @@ git clone <your repo>   # or copy the project folder over
 cd analyze-and-backup
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-sudo apt install libimage-exiftool-perl   # exiftool
+pip install -r requirements.txt -r requirements-pi.txt
+sudo apt install libimage-exiftool-perl liblgpio-dev   # exiftool + status box GPIO lib
 cp .env.example .env                       # fill in thresholds / Azure creds later
 ```
+
+`requirements-pi.txt` is the status box's hardware dependencies (`gpiozero`,
+`lgpio`) -- Pi-only, on top of the base `requirements.txt`. Don't add them
+to the base file: `lgpio` needs the `liblgpio-dev` system library to build
+its C extension, which doesn't exist on a dev machine or a cloud build
+server (this broke the Azure App Service GitHub Actions deploy once
+already when it briefly lived in the shared file).
 
 ## 2. Install the auto-run service + web interface
 

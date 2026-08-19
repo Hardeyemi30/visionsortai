@@ -1,0 +1,15 @@
+# Pi-only hardware dependencies -- the status box's LED bar graph
+# (pi_status_box.py). Install these ON THE PI ONLY, on top of the base
+# requirements.txt:
+#
+#   pip install -r requirements.txt -r requirements-pi.txt
+#
+# lgpio compiles a native C extension against the system liblgpio library
+# (installed via `sudo apt install liblgpio-dev`, see deploy/README.md).
+# That library only exists on real Raspberry Pi hardware -- installing this
+# file anywhere else (a dev laptop, CI, Azure App Service) will fail to
+# build lgpio. That's exactly what broke the Azure GitHub Actions deploy
+# when these two lines were briefly in the shared requirements.txt instead
+# of here.
+gpiozero>=2.0
+lgpio>=0.2

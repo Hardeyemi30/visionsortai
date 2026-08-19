@@ -16,13 +16,12 @@ Flask>=3.0
 qrcode[pil]>=7.4        # printable QR code generation
 gunicorn                # production WSGI server for the Azure App Service deployment
 
-# --- Hardware (Pi status box: bar graph + button) ---
-# Only installable/importable on the Pi itself (needs libgpiod/lgpio system
-# libs) -- harmless to list here since pip just no-ops these on a dev
-# machine that doesn't have the underlying GPIO hardware libs, but if that
-# ever causes trouble on a non-Pi machine, comment these two lines out there.
-gpiozero>=2.0
-lgpio>=0.2
-
 # --- Testing ---
 pytest>=8.0
+
+# NOTE: Pi-only hardware dependencies (gpiozero, lgpio for the status box's
+# bar graph) live in requirements-pi.txt, NOT here. lgpio compiles a native
+# C extension against liblgpio and fails to build anywhere that system
+# library isn't present -- including Azure's build server, which broke the
+# "Build and deploy Python app to Azure Web App" GitHub Actions workflow
+# when these were briefly listed in this file. Keep them out of here.
