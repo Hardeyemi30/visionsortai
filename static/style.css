@@ -198,8 +198,15 @@ main.narrow { max-width: 980px; margin: 0 auto; padding: 34px 32px 70px; }
 /* ---------------------------------------------------------------------
    Photo strip / gallery -- photos are the hero, with a place-name badge
 --------------------------------------------------------------------- */
-.photo-strip { display: flex; gap: 10px; overflow-x: auto; margin-bottom: 36px; padding-bottom: 2px; }
+.photo-strip {
+  display: flex; gap: 10px; overflow-x: auto; margin-bottom: 36px; padding-bottom: 10px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
 .photo-strip .pcard { flex: 1 0 160px; }
+.photo-strip::-webkit-scrollbar { height: 6px; }
+.photo-strip::-webkit-scrollbar-track { background: transparent; }
+.photo-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+.photo-strip::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
 
